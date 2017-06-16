@@ -36,12 +36,18 @@ gulp.task('build-html', function() {
 	gulp.src([`${paths.source}**/*.html`, `!${paths.source}**/*.layout.html`, `!${paths.source}components/**/*.html`])
 		.pipe(data(themes.applyLayout))
 		.pipe(gulp.dest(paths.output));
-})
+});
+
+gulp.task('build-components', function() {
+	gulp.src([`${paths.source}components/**/*.html`])
+		.pipe(data(themes.components))
+		.pipe(gulp.dest(paths.output));
+});
 
 gulp.task('build', function(callback) {
 	return runSequence(
 		'clean',
-		'build-html',
+		'build-html', 'build-components', 
 		// compileToModules.map(function(moduleType) { return 'build-babel-' + moduleType }),
 		callback
 	);

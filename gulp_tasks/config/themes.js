@@ -42,3 +42,17 @@ exports.applyLayout = function(file) {
 	}
 	return file;
 }
+
+exports.components = function(file) {
+	let c = cheerio.load(file.contents.toString());
+	console.log('template => ', c('template').html());
+	console.log('template id => ', c('template').attr('id'));
+
+	let s = cheerio.load(c('template').html())
+	console.log('template style', s('style').html())
+	console.log('template style type', s('style').attr('type'));
+
+	console.log('script => ', c('script').html());
+
+	return file;
+}
