@@ -115,7 +115,7 @@ exports.components = function(options) {
 
 		let js = '';
 		try {
-			js = jsCompile(c('script').html(), c('script').attr('type'));
+			js = jsCompile(c('script').html().trim(), c('script').attr('type'));
 		} catch (err) {
 			// console.log(err);
 			cb(gulpError(err, 'jsCompile'));
