@@ -2,11 +2,15 @@
 const nodefs = require('fs');
 const nodepath = require('path');
 
+const babel = require('babel-core');
 const cheerio = require('cheerio');
+const extend = require('extend');
+const gutil = require('gulp-util');
 const less = require('less');
 const minify = require('html-minifier').minify;
 const pretty = require('pretty');
 const uglifycss = require('uglifycss');
+const uglifyjs = require("uglify-js");
 
 /**
  * [discoverLayoutFile description]
@@ -32,20 +36,13 @@ function discoverLayoutFile(path) {
 	return false;
 }
 
-/**
- * 
- * @param {String} code
- * @param {String} type
- * @param {Object} options
- * @returns {String}
- */
-async function cssCompile(code, type, options) {
-	let css = code;
-	if (type.toLowerCase() === "text/less") {
-		options = require('./less-options');
-		css = (await less.render(css, options)).css.trim();
+function gulpError(err, where = 'themes') {
+	if (!err._babel) {
+	err.lineNumber = err.line;
+	err.fileName = err.filename;
+		err.message = err.message + ' in file ' + err.fileName + ' line no. ' + err.lineNumber;
 	}
-	return options.minify ? uglifycss.processString(css) : css;
+	return new gutil.PluginError(where, err);
 }
 
 /**
@@ -54,9 +51,35 @@ async function cssCompile(code, type, options) {
  * @param {String} type
  * @param {Object} options
  * @returns {String}
+ * @throws Error
  */
-async function jsCompile(code, type, options) {
-	return code;
+async function cssCompile(code, type, options) {
+	let css = code;
+	if (type.toLowerCase() === "text/less") {
+		options = extend(options || {}, require('./less-options'));
+		css = (await less.render(css, options)).css.trim();
+	}
+	return options.minify ? uglifycss.processString(css) : css;
+	// return css;
+}
+
+/**
+ * 
+ * @param {String} code
+ * @param {String} type
+ * @param {Object} options
+ * @returns {String}
+ * @throws Error
+ */
+function jsCompile(code, type, options) {
+	let js = code;
+	if (!type || type.toLowerCase() != "text/javascript") {
+		options = extend(options || {}, require('./babel-options')['native-modules']());
+		console.log(code);
+		js = babel.transform(code, options);
+	}
+	return options.minify ? uglifyjs.minify(js, {fromString: true}).code : js;
+	// return js;
 }
 
 exports.applyLayout = function(file) {
@@ -73,28 +96,41 @@ exports.applyLayout = function(file) {
 	return file;
 }
 
-exports.components = async function(file, options) {
-	let c = cheerio.load(file.contents.toString());
-	let s = cheerio.load(c('template').html())
+exports.components = function(options) {
+	return async function(file, cb){
+		let c = cheerio.load(file.contents.toString());
+		let s = cheerio.load(c('template').html())
 
-	let template = `<template id="${c('template').attr('id')}">\n`;
+		let template = `<template id="${c('template').attr('id')}">\n`;
 
-	let css = await cssCompile(s('style').html(), s('style').attr('type'), options);
-	template += `<style type="text/css">\n${css}\n</style>\n`;
+		let css = '';
+		try {
+			css = await cssCompile(s('style').html(), s('style').attr('type'), options);
+		} catch (err) {
+			cb(gulpError(err, 'cssCompile'));
+		}
+		template += `<style type="text/css">\n${css}\n</style>\n`;
 
-	template += s('body').html().trim() + "\n";
+		template += s('body').html().trim() + "\n";
 
-	let js = await jsCompile(c('script').html(), c('script').attr('type'));
+		let js = '';
+		try {
+			js = jsCompile(c('script').html(), c('script').attr('type'));
+		} catch (err) {
+			// console.log(err);
+			cb(gulpError(err, 'jsCompile'));
+		}
 
-	template += "</template>\n";
-	template += `<script type="text/javascript">${js}</script>`;
+		template += "</template>\n";
+		template += `<script type="text/javascript">${js}</script>`;
 
 
-	if (options.minify) {
-		template = minify(template, { collapseWhitespace: true });
+		if (options.minify) {
+			template = minify(template, { collapseWhitespace: true });
+		}
+		console.log(template);
+
+		file.contents = new Buffer(template);
+		return file;
 	}
-	console.log(template);
-
-	file.contents = new Buffer(template);
-	return file;
 }

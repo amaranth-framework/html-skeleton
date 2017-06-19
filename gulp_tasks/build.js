@@ -40,7 +40,7 @@ gulp.task('build-html', function() {
 
 gulp.task('build-components', function() {
 	gulp.src([`${paths.source}components/**/*.html`])
-		.pipe(data(themes.components))
+		.pipe(data(themes.components({minify: true})))
 		.pipe(gulp.dest(paths.output));
 });
 
