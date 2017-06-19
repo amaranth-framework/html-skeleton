@@ -4,6 +4,7 @@ const nodepath = require('path');
 const cheerio = require('cheerio');
 const pretty = require('pretty');
 const minify = require('html-minifier').minify;
+const less = require('less');
 
 /**
  * [discoverLayoutFile description]
@@ -43,14 +44,17 @@ exports.applyLayout = function(file) {
 	return file;
 }
 
-exports.components = function(file) {
+exports.components = async function(file) {
 	let c = cheerio.load(file.contents.toString());
 	console.log('template => ', c('template').html());
 	console.log('template id => ', c('template').attr('id'));
 
 	let s = cheerio.load(c('template').html())
+	if (s('style').attr('type').toLowerCase() === 'text/less') {
+		console.log('template style', less.render(s('style').html()))
+	}
 	console.log('template style', s('style').html())
-	console.log('template style type', s('style').attr('type'));
+	console.log('template style type', await s('style').attr('type'));
 
 	console.log('script => ', c('script').html());
 
