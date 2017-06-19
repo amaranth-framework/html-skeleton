@@ -1,10 +1,12 @@
 
 const nodefs = require('fs');
 const nodepath = require('path');
+
 const cheerio = require('cheerio');
-const pretty = require('pretty');
-const minify = require('html-minifier').minify;
 const less = require('less');
+const minify = require('html-minifier').minify;
+const pretty = require('pretty');
+const uglifycss = require('uglifycss');
 
 /**
  * [discoverLayoutFile description]
@@ -30,6 +32,33 @@ function discoverLayoutFile(path) {
 	return false;
 }
 
+/**
+ * 
+ * @param {String} code
+ * @param {String} type
+ * @param {Object} options
+ * @returns {String}
+ */
+async function cssCompile(code, type, options) {
+	let css = code;
+	if (type.toLowerCase() === "text/less") {
+		options = require('./less-options');
+		css = (await less.render(css, options)).css.trim();
+	}
+	return options.minify ? uglifycss.processString(css) : css;
+}
+
+/**
+ * 
+ * @param {String} code
+ * @param {String} type
+ * @param {Object} options
+ * @returns {String}
+ */
+async function jsCompile(code, type, options) {
+	return code;
+}
+
 exports.applyLayout = function(file) {
 	let layout = discoverLayoutFile(file.path);
 	if (layout !== false) {
@@ -44,19 +73,28 @@ exports.applyLayout = function(file) {
 	return file;
 }
 
-exports.components = async function(file) {
+exports.components = async function(file, options) {
 	let c = cheerio.load(file.contents.toString());
-	console.log('template => ', c('template').html());
-	console.log('template id => ', c('template').attr('id'));
-
 	let s = cheerio.load(c('template').html())
-	if (s('style').attr('type').toLowerCase() === 'text/less') {
-		console.log('template style', less.render(s('style').html()))
+
+	let template = `<template id="${c('template').attr('id')}">\n`;
+
+	let css = await cssCompile(s('style').html(), s('style').attr('type'), options);
+	template += `<style type="text/css">\n${css}\n</style>\n`;
+
+	template += s('body').html().trim() + "\n";
+
+	let js = await jsCompile(c('script').html(), c('script').attr('type'));
+
+	template += "</template>\n";
+	template += `<script type="text/javascript">${js}</script>`;
+
+
+	if (options.minify) {
+		template = minify(template, { collapseWhitespace: true });
 	}
-	console.log('template style', s('style').html())
-	console.log('template style type', await s('style').attr('type'));
+	console.log(template);
 
-	console.log('script => ', c('script').html());
-
+	file.contents = new Buffer(template);
 	return file;
 }
