@@ -8,6 +8,7 @@ const extend = require('extend');
 const gutil = require('gulp-util');
 const less = require('less');
 const minify = require('html-minifier').minify;
+const objectAssign = require('object-assign');
 const pretty = require('pretty');
 const uglifycss = require('uglifycss');
 const uglifyjs = require("uglify-js");
@@ -46,7 +47,7 @@ function gulpError(err, where = 'themes') {
 }
 
 /**
- * 
+ *
  * @param {String} code
  * @param {String} type
  * @param {Object} options
@@ -56,7 +57,7 @@ function gulpError(err, where = 'themes') {
 async function cssCompile(code, type, options) {
 	let css = code;
 	if (type.toLowerCase() === "text/less") {
-		options = extend(options || {}, require('./less-options'));
+		options = objectAssign(options || {}, require('./less-options'));
 		css = (await less.render(css, options)).css.trim();
 	}
 	return options.minify ? uglifycss.processString(css) : css;
@@ -64,7 +65,7 @@ async function cssCompile(code, type, options) {
 }
 
 /**
- * 
+ *
  * @param {String} code
  * @param {String} type
  * @param {Object} options
@@ -74,11 +75,10 @@ async function cssCompile(code, type, options) {
 function jsCompile(code, type, options) {
 	let js = code;
 	if (!type || type.toLowerCase() != "text/javascript") {
-		options = extend(options || {}, require('./babel-options')['native-modules']());
-		console.log(code);
-		js = babel.transform(code, options);
+		let options = require('./babel-options')['native-modules']();
+		js = babel.transform(code, options).code;
 	}
-	return options.minify ? uglifyjs.minify(js, {fromString: true}).code : js;
+	return options.minify ? uglifyjs.minify({'file': js}).code : js;
 	// return js;
 }
 
@@ -115,7 +115,7 @@ exports.components = function(options) {
 
 		let js = '';
 		try {
-			js = jsCompile(c('script').html().trim(), c('script').attr('type'));
+			js = jsCompile(c('script').html().trim(), c('script').attr('type'), options);
 		} catch (err) {
 			// console.log(err);
 			cb(gulpError(err, 'jsCompile'));
@@ -124,13 +124,12 @@ exports.components = function(options) {
 		template += "</template>\n";
 		template += `<script type="text/javascript">${js}</script>`;
 
-
 		if (options.minify) {
 			template = minify(template, { collapseWhitespace: true });
 		}
-		console.log(template);
+		// console.log(template);
 
 		file.contents = new Buffer(template);
-		return file;
+		cb(undefined, file);
 	}
 }

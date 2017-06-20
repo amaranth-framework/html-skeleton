@@ -6,7 +6,7 @@ exports.base = function() {
 		babelrc: false,
 		filename: '',
 		filenameRelative: '',
-		sourceMap: true,
+		// sourceMap: true,
 		sourceRoot: '',
 		moduleRoot: path.resolve('src').replace(/\\/g, '/'),
 		moduleIds: false,
@@ -20,7 +20,6 @@ exports.base = function() {
 			'transform-flow-strip-types'
 		]
 	};
-	config.plugins.push('transform-flow-strip-types');
 	return config;
 }
 

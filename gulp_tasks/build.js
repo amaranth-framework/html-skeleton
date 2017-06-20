@@ -41,13 +41,13 @@ gulp.task('build-html', function() {
 gulp.task('build-components', function() {
 	gulp.src([`${paths.source}components/**/*.html`])
 		.pipe(data(themes.components({minify: true})))
-		.pipe(gulp.dest(paths.output));
+		.pipe(gulp.dest(paths.output + '/components/'));
 });
 
 gulp.task('build', function(callback) {
 	return runSequence(
 		'clean',
-		'build-html', 'build-components', 
+		['build-html', 'build-components'],
 		// compileToModules.map(function(moduleType) { return 'build-babel-' + moduleType }),
 		callback
 	);
